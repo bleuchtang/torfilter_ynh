@@ -1,0 +1,9 @@
+[Unit]
+Description=Get list of Tor nodes every day
+
+[Timer]
+OnCalendar=*-*-* 00:00:00
+Unit=get_tor_nodes.service
+
+[Install]
+WantedBy=multi-user.target

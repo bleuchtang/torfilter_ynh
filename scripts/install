@@ -1,0 +1,135 @@
+#!/bin/bash
+
+# Tor Client app for YunoHost
+# Copyright (C) 2015 Emile Morel <emile@bleuchtang.fr>
+# Copyright (C) 2015 Julien Vaubourg <julien@vaubourg.com>
+# Contribute at https://github.com/labriqueinternet/torfilter_ynh
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# This is an upgrade?
+upgrade=$([ "${TORFILTER_UPGRADE}" == 1 ] && echo true || echo false)
+
+# Retrieve arguments
+domain=${1}
+url_path=${2}
+
+if ! $upgrade; then
+
+  # Check domain/path availability
+  sudo yunohost app checkurl ${domain}${url_path} -a torfilter
+  if [ ! $? -eq 0 ]; then
+    exit 1
+  fi
+  
+  if [ ! -e /tmp/.ynh-hotspot-started ]; then
+    echo "WARNING: Hotspot app not installed or not started" >&2
+  fi
+
+fi
+
+echo 'deb http://deb.torproject.org/torproject.org jessie main' | sudo tee "/etc/apt/sources.list.d/torproject.list"
+sudo apt-key adv --recv-keys --keyserver keyserver.ubuntu.com 0xee8cbc9e886ddd89
+
+# Install packages
+packages='tor php5-fpm python-stem ipset'
+sudo apt-get update
+DEBIAN_FRONTEND=noninteractive sudo apt-get --assume-yes --force-yes install ${packages}
+
+if ! $upgrade; then
+
+  # Save arguments
+  sudo yunohost app setting torfilter service_enabled -v 0
+  sudo yunohost app setting torfilter wifi_device_id -v -1
+
+fi
+
+# Save git commit
+gitcommit=$(git rev-parse HEAD)
+sudo yunohost app setting torfilter gitcommit -v "${gitcommit}"
+
+sudo install -o root -g root -m 0644 ../conf/torrc /etc/tor/torrc.tpl
+sudo install -b -o root -g root -m 0644 ../conf/nginx_torfilter.conf "/etc/nginx/conf.d/${domain}.d/torfilter.conf"
+sudo install -b -o root -g root -m 0644 ../conf/nginx_captive-torfilter.conf /etc/nginx/conf.d/captive-torfilter.conf
+sudo install -b -o root -g root -m 0644 ../conf/phpfpm_torfilter.conf /etc/php5/fpm/pool.d/torfilter.conf
+
+# Copy web sources
+sudo mkdir -pm 0755 /var/www/torfilter/
+sudo cp -a ../sources/* /var/www/torfilter/
+
+sudo chown -R root: /var/www/torfilter/
+sudo chmod -R 0644 /var/www/torfilter/*
+sudo find /var/www/torfilter/ -type d -exec chmod +x {} \;
+
+# Fix confs
+## nginx
+sudo sed "s|<TPL:NGINX_LOCATION>|${url_path}|g" -i "/etc/nginx/conf.d/${domain}.d/torfilter.conf"
+sudo sed 's|<TPL:NGINX_REALPATH>|/var/www/torfilter/|g' -i "/etc/nginx/conf.d/${domain}.d/torfilter.conf"
+sudo sed 's|<TPL:PHP_NAME>|torfilter|g' -i "/etc/nginx/conf.d/${domain}.d/torfilter.conf"
+
+## php-fpm
+sudo sed 's|<TPL:PHP_NAME>|torfilter|g' -i /etc/php5/fpm/pool.d/torfilter.conf
+sudo sed 's|<TPL:PHP_USER>|admin|g' -i /etc/php5/fpm/pool.d/torfilter.conf
+sudo sed 's|<TPL:PHP_GROUP>|admins|g' -i /etc/php5/fpm/pool.d/torfilter.conf
+sudo sed 's|<TPL:NGINX_REALPATH>|/var/www/torfilter/|g' -i /etc/php5/fpm/pool.d/torfilter.conf
+sudo sed 's|^;\?\s*max_execution_time.\+|max_execution_time = 600|' -i /etc/php5/fpm/php.ini
+
+# Fix sources
+sudo sed "s|<TPL:NGINX_LOCATION>|${url_path}|g" -i /var/www/torfilter/config.php
+
+# Copy init script
+sudo install -o root -g root -m 0755 ../conf/ynh-torfilter /usr/local/bin/
+sudo install -o root -g root -m 0644 ../conf/ynh-torfilter.service /etc/systemd/system/
+sudo install -o root -g root -m 0755 ../conf/get_tor_nodes.py /usr/local/bin/
+sudo install -o root -g root -m 0755 ../conf/get_tor_nodes.sh /usr/local/bin/
+sudo install -o root -g root -m 0755 ../conf/get_mac.sh /usr/local/bin/
+sudo install -o root -g root -m 0644 ../conf/get_tor_nodes.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 ../conf/get_tor_nodes.timer /etc/systemd/system/
+
+# Install fakedns
+sudo install -o root -g root -m 0755 ../conf/tor_fakedns /usr/local/bin/
+
+# Allow Tor ports in firewall (tcp socks and DNS socks)
+sudo yunohost firewall allow --no-upnp TCP 9040
+sudo yunohost firewall allow --no-upnp UDP 9053
+# Allow Fake DNS port and Captive portal in firewall
+sudo yunohost firewall allow --no-upnp UDP 4353
+sudo yunohost firewall allow --no-upnp TCP 4380
+
+# Set default inits
+# The boot order of these services are important, so they are disabled by default
+# and the ynh-torfilter service handles them.
+sudo systemctl disable tor
+sudo systemctl stop tor
+
+sudo systemctl enable php5-fpm
+sudo systemctl restart php5-fpm
+
+sudo systemctl reload nginx
+
+sudo systemctl enable ynh-torfilter
+sudo yunohost service add ynh-torfilter
+
+sudo systemctl enable get_tor_nodes.timer
+sudo systemctl start get_tor_nodes.timer
+
+if ! $upgrade; then
+  sudo systemctl start ynh-torfilter
+
+  echo "WARNING: Tor Client is not started because you need to define an associated wifi hotspot through the web admin" >&2
+fi
+
+sudo yunohost app ssowatconf
+
+exit 0

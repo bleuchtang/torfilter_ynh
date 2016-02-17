@@ -1,0 +1,270 @@
+#!/bin/bash
+
+# TorFilter app for YunoHost
+# Copyright (C) 2015 Emile morel <emile@bleuchtang.fr>
+# Copyright (C) 2015 Julien Vaubourg <julien@vaubourg.com>
+# Contribute at https://github.com/labriqueinternet/torfilter_ynh
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Functions
+## State functions
+
+set -x
+
+has_torfilter_app() {
+  [ -e /tmp/.ynh-torfilter-started ]
+}
+
+has_hotspot_app() {
+  [ -e /tmp/.ynh-hotspot-started ]
+}
+
+is_nat_set() {
+  iptables -nvt nat -L PREROUTING | grep REDIRECT | grep -q "${ynh_wifi_device}"
+}
+
+is_tor_running() {
+  systemctl is-active tor &> /dev/null
+}
+
+is_fakedns_running() {
+  ps aux | grep -v grep | grep -q tor_fakedns
+}
+
+is_running() {
+  has_hotspot_app && is_tor_running && is_nat_set && is_fakedns_running
+}
+
+set_nat() {
+  /usr/local/bin/get_mac.sh
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p udp --dport 53 -j REDIRECT --to-ports 9053
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p tcp ! --dport 53 --syn -j REDIRECT --to-ports 9040
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set tornodesip dst -j ACCEPT
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set torprojectip dst -p tcp --dport 443 -j REDIRECT --to-ports 9040
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 
+  iptables -A FORWARD -i "${ynh_wifi_device}" -m set ! --match-set tornodesip dst -j REJECT
+}
+
+set_forwarding() {
+  sysctl -w net.ipv6.conf.all.forwarding=1 > /dev/null
+  sysctl -w net.ipv4.conf.all.forwarding=1 > /dev/null
+}
+
+unset_nat() {
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p udp --dport 53 -j REDIRECT --to-ports 9053
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p tcp ! --dport 53 --syn -j REDIRECT --to-ports 9040
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set tornodesip dst -j ACCEPT
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set torprojectip dst -p tcp --dport 443 -j REDIRECT --to-ports 9040
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 
+  iptables -D FORWARD -i "${ynh_wifi_device}" -m set ! --match-set tornodesip dst -j REJECT
+}
+
+stop_tor() {
+  systemctl stop tor
+}
+
+start_tor() {
+  cp /etc/tor/torrc{.tpl,}
+
+  sed "s|<TPL:TOR_NETWORK>|${ynh_wifi_prefix}|g" -i /etc/tor/torrc
+
+  systemctl start tor
+  while ! echo exit | nc "${ynh_wifi_prefix}.1" 9040; do sleep 10; done
+  /usr/local/bin/get_tor_nodes.sh
+}
+
+stop_fakedns() {
+  kill $(ps aux | grep tor_fakedns | awk '{ print $2 }' | head -n1)
+}
+
+start_fakedns() {
+  (/usr/local/bin/tor_fakedns "${ynh_wifi_prefix}.1" &> /dev/null) &
+}
+
+## Tools
+
+ynh_setting_get() {
+  app=${1}
+  setting=${2}
+
+  grep "^${setting}:" "/etc/yunohost/apps/${app}/settings.yml" | sed s/^[^:]\\+:\\s*[\"\']\\?// | sed s/\\s*[\"\']\$//
+}
+
+ynh_setting_set() {
+  app=${1}
+  setting=${2}
+  value=${3}
+
+  yunohost app setting "${app}" "${setting}" -v "${value}"
+}
+
+do_start() {
+  if is_running; then
+    echo "Already started"
+  elif [ "${ynh_service_enabled}" -eq 0 ]; then
+    echo "Disabled service"
+  elif ! has_hotspot_app; then
+    echo "[ERR] Hotspot is not running"
+  else
+    echo "[torfilter] Starting..."
+    touch /tmp/.ynh-torfilter-started
+
+    # Run tor
+    if ! is_tor_running; then
+      echo "Run Tor"
+      start_tor
+    fi
+
+    if ! is_fakedns_running; then
+      echo "Start FakeDNS for Tor"
+      start_fakedns
+    fi
+
+    # Set ipv4 NAT
+    if ! is_nat_set; then
+      echo "Set NAT settings"
+      set_nat
+    fi
+  fi
+}
+
+do_stop() {
+  echo "[torfilter] Stopping..."
+  rm -f /tmp/.ynh-torfilter-started
+
+  if is_nat_set; then
+    echo "Unset NAT"
+    unset_nat
+  fi
+
+  if is_tor_running; then
+    echo "Stop Tor"
+    stop_tor
+  fi
+
+  if is_fakedns_running; then
+    echo "Stop FakeDNS for Tor"
+    stop_fakedns
+  fi
+
+}
+
+do_status() {
+  exitcode=0
+
+  if [ "${ynh_service_enabled}" -eq 0 ]; then
+    echo "[ERR] Tor Client Service disabled"
+    exitcode=1
+  fi
+
+  if ! has_hotspot_app; then
+    echo "[ERR] Hotspot is not running"
+    exitcode=1
+  fi
+
+  if is_tor_running; then
+    echo "[OK] Tor is running"
+  else
+    echo "[ERR] Tor is not running"
+    exitcode=1
+  fi
+
+  if is_fakedns_running; then
+    echo "[OK] FakeDNS is running"
+  else
+    echo "[ERR] FakeDNS is not running"
+    exitcode=1
+  fi
+
+  if is_nat_set; then
+    echo "[OK] IPv4 nat rules set"
+  else
+    echo "[ERR] No IPv4 nat rules set"
+    exitcode=1
+  fi
+
+  exit ${exitcode}
+}
+
+if [ "$1" != restart ]; then
+
+  # Restart php5-fpm at the first start (it needs to be restarted after the slapd start)
+  if [ ! -e /tmp/.ynh-torfilter-boot ]; then
+    touch /tmp/.ynh-torfilter-boot
+    systemctl restart php5-fpm
+  fi
+
+  ynh_wifi_device_id=$(ynh_setting_get torfilter wifi_device_id)
+
+  if [[ ! "${1}" =~ stop ]]; then
+    exitcode=0
+
+    if [ "${ynh_wifi_device_id}" -eq -1 ]; then
+      echo "[WARN] You need to select an associated wifi hotspot (you can do it through the web admin)"
+      exitcode=1
+    fi
+
+    [ "${exitcode}" -ne 0 ] && exit ${exitcode}
+  fi
+
+  # Variables
+  
+  echo -n "Retrieving Yunohost settings... "
+  
+  ynh_service_enabled=$(ynh_setting_get torfilter service_enabled)
+  
+  if [ "${ynh_wifi_device_id}" -eq 0 ]; then
+    ynh_wifi_device=$(ynh_setting_get hotspot wifi_device)
+  else
+    ynh_wifi_device="hotspot${ynh_wifi_device_id}"
+  fi
+
+  echo OK
+  
+  IFS='|' read -a ynh_wifi_ssid <<< "$(ynh_setting_get hotspot wifi_ssid)"
+  IFS='|' read -a ynh_wifi_prefix <<< "$(ynh_setting_get hotspot ip4_nat_prefix)"
+  IFS='|' read -a ynh_mac <<< "$(ynh_setting_get torfilter macip)"
+  ynh_wifi_prefix=${ynh_wifi_prefix[$ynh_wifi_device_id]}
+  ynh_wifi_ssid=${ynh_wifi_ssid[$ynh_wifi_device_id]}
+  rm -f /etc/tor/allow_mac
+  for i in "${ynh_mac[@]}"
+  do
+    echo $i >> /etc/tor/allow_mac
+  done
+fi
+
+case "$1" in
+  start)
+    do_start
+    ;;
+  stop)
+    do_stop
+    ;;
+  restart)
+    do_stop
+    do_start
+    ;;
+  status)
+    do_status
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+  ;;
+esac
+
+exit 0

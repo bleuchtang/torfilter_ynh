@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Tor Client app for YunoHost
+# Copyright (C) 2015 Emile Morel <emile@bleuchtang.fr>
+# Copyright (C) 2015 Julien Vaubourg <julien@vaubourg.com>
+# Contribute at https://github.com/labriqueinternet/torfilter_ynh
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Retrieve arguments
+domain=$(sudo yunohost app setting torfilter domain)
+
+# The End
+sudo systemctl stop ynh-torfilter
+sudo systemctl disable ynh-torfilter
+sudo yunohost service remove ynh-torfilter
+sudo systemctl stop get_tor_nodes.timer
+sudo systemctl disable get_tor_nodes.timer
+
+sudo rm -f /etc/systemd/system/ynh-torfilter.service 
+sudo rm -f /etc/systemd/system/get_tor_nodes.service
+sudo rm -f /etc/systemd/system/get_tor_nodes.timer
+sudo rm -f /tmp/.ynh-torfilter-*
+sudo rm -f /usr/local/bin/ynh-torfilter
+sudo rm -f /usr/local/bin/get_tor_nodes.py
+sudo rm -f /usr/local/bin/get_tor_nodes.sh
+sudo rm -f /usr/local/bin/get_mac.sh
+
+# Update firewall for DHCP
+sudo yunohost firewall disallow UDP 9053
+sudo yunohost firewall disallow TCP 9040
+sudo yunohost firewall disallow UDP 4353
+sudo yunohost firewall disallow TCP 4380
+
+# Remove confs
+sudo rm -f /etc/tor/torrc.tpl
+sudo rm -f /etc/nginx/conf.d/${domain}.d/torfilter.conf
+sudo rm -f /etc/php5/fpm/pool.d/torfilter.conf
+sudo rm -f /etc/nginx/conf.d/captive-torfilter.conf
+sudo rm -f /etc/php5/fpm/pool.d/torfilter.conf
+
+# Restart services
+sudo systemctl restart php5-fpm
+sudo systemctl reload nginx
+
+# Remove sources
+sudo rm -rf /var/www/torfilter/
+
+sudo rm -rf /etc/apt/sources.list.d/torproject.list
+sudo apt-key del 0xee8cbc9e886ddd89
+sudo apt-get update
+
+exit 0

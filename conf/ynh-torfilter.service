@@ -1,0 +1,13 @@
+[Unit]
+Description=YunoHost TOR Client.
+Requires=ynh-hotspot.service
+After=ynh-hotspot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ynh-torfilter start
+ExecStop=/usr/local/bin/ynh-torfilter stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
