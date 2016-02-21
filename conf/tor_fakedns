@@ -27,14 +27,21 @@ my $ip4_addr = shift @ARGV;
 sub reply_handler {
   my ($qname, $qclass, $qtype, $peerhost,$query,$conn) = @_;
   my ($rcode, @ans, @auth, @add);
- 
-  if ($qtype eq "A" && $qname eq "www.torproject.org" ) {
-      my ($ttl, $rdata) = (3600, "82.195.75.101");
-      my $rr = new Net::DNS::RR("$qname $ttl $qclass $qtype $rdata");
-      push @ans, $rr;
-      $rcode = "NOERROR";
-  } elsif ($qtype eq "A" && $qname eq "dist.torproject.org" ) {
-      my ($ttl, $rdata) = (3600, "154.35.132.70");
+  my $resolver = new Net::DNS::Resolver(
+      nameservers => [ '80.67.188.188', '80.67.169.12' ],
+      recurse     => 1,
+      debug       => 1
+      );
+  if ($qtype eq "A" && ( $qname =~ m/torproject\.org$/ || $qname =~ m/boom\.org$/ )) {
+      my $reply = $resolver->search( $qname );
+      my ($ttl, $rdata) = (1, $ip4_addr);
+      if ($reply) {
+           foreach my $rr ($reply->answer) {
+               next unless $rr->type eq "A";
+      	       ($ttl, $rdata) = (3600, $rr->address);
+               last;
+           }
+       }
       my $rr = new Net::DNS::RR("$qname $ttl $qclass $qtype $rdata");
       push @ans, $rr;
       $rcode = "NOERROR";
@@ -43,7 +50,6 @@ sub reply_handler {
       my $rr = new Net::DNS::RR("$qname $ttl $qclass $qtype $rdata");
       push @ans, $rr;
       $rcode = "NOERROR";
-
   } else {
       $rcode = "NXDOMAIN";
   }

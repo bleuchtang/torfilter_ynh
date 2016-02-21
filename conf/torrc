@@ -24,6 +24,7 @@
 ## can access your SocksPort may be able to learn about the connections
 ## you make.
 SocksPolicy accept <TPL:TOR_NETWORK>.0/24
+SocksPolicy accept 127.0.0.1
 SocksPolicy reject *
 
 ## Logs go to stdout at level "notice" unless redirected by something

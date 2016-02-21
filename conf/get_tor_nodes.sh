@@ -45,6 +45,10 @@ ipset destroy tmpip
 
 host torproject.org | grep 'torproject.org has address' \
   | sed 's/torproject.org has address //' > "${IP_TORPROJECT}_tmp" 
+host tails.boum.org | grep 'tails.boum.org has address' \
+  | sed 's/tails.boum.org has address //' >> "${IP_TORPROJECT}_tmp" 
+host dl.amnesia.boum.org | grep 'dl.amnesia.boum.org has address' \
+  | sed 's/dl.amnesia.boum.org has address //' >> "${IP_TORPROJECT}_tmp" 
 
 if [ $? -ne 0 ]
 then
