@@ -84,10 +84,12 @@ dispatch('/', function() {
   $macip = '';
   foreach ($lines as $line) {
     $ip_mac = explode(' ', $line); 
-    if (preg_match("/$ip_mac[0]/i", $macip_set)) {
-      $macip .= "<input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' checked>".$ip_mac[0]." ".$ip_mac[2]."</input>";
-    } else {
-      $macip .= "<input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' >".$ip_mac[0]." ".$ip_mac[2]."</input>";
+    if ($ip_mac[1] != NULL) {
+      if (preg_match("/$ip_mac[0]/i", $macip_set)) {
+        $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' checked>".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
+      } else {
+        $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' >".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
+      }
     }  
   }
 

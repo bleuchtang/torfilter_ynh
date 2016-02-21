@@ -74,19 +74,17 @@
               </div>
             </div>
           </div>
-
-        <div class="panel-heading">
-          <h3 class="panel-title"><?= _("Device available on the wifi") ?></h3>
         </div>
 
-        <div style="padding: 14px 14px 0 10px">
-  
-          <div>
+        <div class="panel-heading">
+          <h3 class="panel-title"><?= _("Device connected on the torfilter wifi") ?></h3>
+        </div>
+
+          <div class="checkbox">
              
-                  <?= empty($maciplist) ? 'toto' : $maciplist ?></br>
+                  <?= empty($maciplist) ? '' : $maciplist ?></br>
           <div>
 
-	</div>
       </div>
       <div class="form-group">
         <div style="text-align: center">
