@@ -79,7 +79,7 @@
         <div class="panel-heading">
           <h3 class="panel-title"><?= _("Device connected on the torfilter wifi") ?></h3>
         </div>
-
+	  By checking the boxes corresponding to your devices, you authorize them to connect to the internet through the Tor client of your internetcube (without a tor sofware installed on it device). 
           <div class="checkbox">
              
                   <?= empty($maciplist) ? '' : $maciplist ?></br>
