@@ -66,8 +66,13 @@ dispatch('/', function() {
   $macip_set = ynh_setting_get('macip');
   $wifi_ssid_list = '';
   $wifi_ssid = '';
-  $wifi_prefix = $prefix[$wifi_device_id];
-  $maciplist = get_macip($wifi_prefix);
+  if ($wifi_device_id != '-1') {
+    $wifi_prefix = $prefix[$wifi_device_id];
+    $maciplist = get_macip($wifi_prefix);
+  } else {
+    $wifi_prefix = "";
+    $maciplist = ""; 
+  }
 
   for($i = 0; $i < count($ssids); $i++) {
     $active = '';
@@ -80,17 +85,22 @@ dispatch('/', function() {
     $wifi_ssid_list .= "<li $active data-device-id='$i'><a href='javascript:;'>".htmlentities($ssids[$i]).'</a></li>';
   }
 
-  $lines = split("\n", $maciplist);
-  $macip = '';
-  foreach ($lines as $line) {
-    $ip_mac = explode(' ', $line); 
-    if ($ip_mac[1] != NULL) {
-      if (preg_match("/$ip_mac[0]/i", $macip_set)) {
-        $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' checked>".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
-      } else {
-        $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' >".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
-      }
-    }  
+  
+  if ($maciplist != '') {
+    $lines = split("\n", $maciplist);
+    $macip = '';
+    foreach ($lines as $line) {
+      $ip_mac = explode(' ', $line); 
+      if ($ip_mac[1] != NULL) {
+        if (preg_match("/$ip_mac[0]/i", $macip_set)) {
+          $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' checked>".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
+        } else {
+          $macip .= "<div class=\"checkbox\"><label><input type='checkbox' name='check_list[]' value='$ip_mac[1],$ip_mac[0]' >".$ip_mac[0]." ".$ip_mac[2]."</label></div>";
+        }
+      }  
+    }
+  } else {
+    $macip = '';
   }
 
   set('faststatus', service_faststatus() == 0);
