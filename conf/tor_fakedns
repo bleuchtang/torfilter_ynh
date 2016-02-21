@@ -32,7 +32,7 @@ sub reply_handler {
       recurse     => 1,
       debug       => 1
       );
-  if ($qtype eq "A" && ( $qname =~ m/torproject\.org$/ || $qname =~ m/boom\.org$/ )) {
+  if ($qtype eq "A" && ( $qname =~ m/torproject\.org$/ || $qname =~ m/boum\.org$/ )) {
       my $reply = $resolver->search( $qname );
       my ($ttl, $rdata) = (1, $ip4_addr);
       if ($reply) {
