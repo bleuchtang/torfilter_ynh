@@ -1,5 +1,5 @@
 [Unit]
-Description=Backup
+Description=refresh tor node list
 
 [Service]
 Type=simple
