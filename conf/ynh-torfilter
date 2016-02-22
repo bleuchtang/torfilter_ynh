@@ -49,12 +49,12 @@ is_running() {
 
 set_nat() {
   /usr/local/bin/get_mac.sh
-  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p udp --dport 53 -j REDIRECT --to-ports 9053
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p udp --dport 53 -j REDIRECT --to-ports 9053 
   iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p tcp ! --dport 53 --syn -j REDIRECT --to-ports 9040
   iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set tornodesip dst -j ACCEPT
   iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -m set --match-set torprojectip dst -p tcp --dport 443 -j REDIRECT --to-ports 9040
-  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 
-  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 -m comment --comment "Torfilter fake DNS"
+  iptables -t nat -A PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 -m comment --comment "Torfilter captive portal"
   iptables -A FORWARD -i "${ynh_wifi_device}" -m set ! --match-set tornodesip dst -j REJECT
 }
 
