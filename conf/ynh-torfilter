@@ -40,7 +40,7 @@ is_tor_running() {
 }
 
 is_fakedns_running() {
-  ps aux | grep -v grep | grep -q tor_fakedns
+  ps aux | grep -v grep | grep -q fake_dns_tor
 }
 
 is_running() {
@@ -68,8 +68,8 @@ unset_nat() {
   iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set localmacip src,src -p tcp ! --dport 53 --syn -j REDIRECT --to-ports 9040
   iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set tornodesip dst -j ACCEPT
   iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -m set --match-set torprojectip dst -p tcp --dport 443 -j REDIRECT --to-ports 9040
-  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 
-  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p udp --dport 53 -j REDIRECT --to-port 4353 -m comment --comment "Torfilter fake DNS"       
+  iptables -t nat -D PREROUTING -i "${ynh_wifi_device}" -p tcp --dport 80 -j REDIRECT --to-port 4380 -m comment --comment "Torfilter captive portal" 
   iptables -D FORWARD -i "${ynh_wifi_device}" -m set ! --match-set tornodesip dst -j REJECT
 }
 
@@ -88,11 +88,14 @@ start_tor() {
 }
 
 stop_fakedns() {
-  kill $(ps aux | grep tor_fakedns | awk '{ print $2 }' | head -n1)
+  systemctl stop dnsmasq@fake_dns_tor.service
 }
 
 start_fakedns() {
-  (/usr/local/bin/tor_fakedns "${ynh_wifi_prefix}.1" &> /dev/null) &
+  cp /etc/dnsmasq.dns/fake_dns_tor{.tpl,}
+  sed "s|<TPL:TOR_NETWORK>|${ynh_wifi_prefix}|g" -i /etc/dnsmasq.dns/fake_dns_tor
+  sed "s|<TPL:TOR_INTERFACE>|${ynh_wifi_device}|g" -i /etc/dnsmasq.dns/fake_dns_tor
+  systemctl restart dnsmasq@fake_dns_tor.service
 }
 
 ## Tools

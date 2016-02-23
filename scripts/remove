@@ -27,8 +27,11 @@ sudo systemctl disable ynh-torfilter
 sudo yunohost service remove ynh-torfilter
 sudo systemctl stop get_tor_nodes.timer
 sudo systemctl disable get_tor_nodes.timer
+sudo systemctl stop dnsmasq@fake_dns_tor
+sudo systemctl disable dnsmasq@fake_dns_tor
 
 sudo rm -f /etc/systemd/system/ynh-torfilter.service 
+sudo rm -f /etc/systemd/system/dnsmasq@fake_dns_tor.service 
 sudo rm -f /etc/systemd/system/get_tor_nodes.service
 sudo rm -f /etc/systemd/system/get_tor_nodes.timer
 sudo rm -f /tmp/.ynh-torfilter-*
@@ -36,10 +39,12 @@ sudo rm -f /usr/local/bin/ynh-torfilter
 sudo rm -f /usr/local/bin/get_tor_nodes.py
 sudo rm -f /usr/local/bin/get_tor_nodes.sh
 sudo rm -f /usr/local/bin/get_mac.sh
+sudo rm -f /etc/dnsmasq.dns/fake_dns_tor*
 
 # Update firewall for DHCP
 sudo yunohost firewall disallow UDP 9053
 sudo yunohost firewall disallow TCP 9040
+sudo yunohost firewall disallow TCP 9051
 sudo yunohost firewall disallow UDP 4353
 sudo yunohost firewall disallow TCP 4380
 

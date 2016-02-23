@@ -1,0 +1,25 @@
+# Wifi Hotspot app for YunoHost 
+# Copyright (C) 2015 Julien Vaubourg <julien@vaubourg.com>
+# Contribute at https://github.com/labriqueinternet/hotspot_ynh
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+bind-interfaces
+port=4353
+no-hosts
+interface=<TPL:TOR_INTERFACE>
+address=/#/<TPL:TOR_NETWORK>.1
+server=/dist.torproject.org/www.torproject.org/tails.boum.org/dl.amnesia.boum.org/80.68.188.188
+no-resolv
+pid-file=/var/run/dnsmasq/fake_dns_tor.pid

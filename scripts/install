@@ -91,18 +91,19 @@ sudo sed "s|<TPL:NGINX_LOCATION>|${url_path}|g" -i /var/www/torfilter/config.php
 # Copy init script
 sudo install -o root -g root -m 0755 ../conf/ynh-torfilter /usr/local/bin/
 sudo install -o root -g root -m 0644 ../conf/ynh-torfilter.service /etc/systemd/system/
+sudo install -o root -g root -m 0644 ../conf/dnsmasq@fake_dns_tor.service /etc/systemd/system/
 sudo install -o root -g root -m 0755 ../conf/get_tor_nodes.py /usr/local/bin/
 sudo install -o root -g root -m 0755 ../conf/get_tor_nodes.sh /usr/local/bin/
 sudo install -o root -g root -m 0755 ../conf/get_mac.sh /usr/local/bin/
 sudo install -o root -g root -m 0644 ../conf/get_tor_nodes.service /etc/systemd/system/
 sudo install -o root -g root -m 0644 ../conf/get_tor_nodes.timer /etc/systemd/system/
-
-# Install fakedns
-sudo install -o root -g root -m 0755 ../conf/tor_fakedns /usr/local/bin/
+sudo mkdir -p /etc/dnsmasq.dns
+sudo install -o root -g root -m 0644 ../conf/fake_dns_tor /etc/dnsmasq.dns/fake_dns_tor.tpl
 
 # Allow Tor ports in firewall (tcp socks and DNS socks)
 sudo yunohost firewall allow --no-upnp TCP 9040
 sudo yunohost firewall allow --no-upnp UDP 9053
+sudo yunohost firewall allow --no-upnp UDP 9051
 # Allow Fake DNS port and Captive portal in firewall
 sudo yunohost firewall allow --no-upnp UDP 4353
 sudo yunohost firewall allow --no-upnp TCP 4380
@@ -120,6 +121,9 @@ sudo systemctl reload nginx
 
 sudo systemctl enable ynh-torfilter
 sudo yunohost service add ynh-torfilter
+
+sudo systemctl enable dnsmasq@fake_dns_tor.service
+sudo yunohost service add dnsmasq@fake_dns_tor.service
 
 sudo systemctl enable get_tor_nodes.timer
 sudo systemctl start get_tor_nodes.timer
