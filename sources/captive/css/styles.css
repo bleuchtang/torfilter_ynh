@@ -1,0 +1,105 @@
+
+html,
+body {
+    // background-color: #f6f6ed;
+    color: #4e6a20; /* Green */
+    color: #1a1a1a;
+}
+
+body {
+    max-width: 40em;
+    margin: auto;
+    padding: 1.5rem;
+}
+
+a,
+a:link,
+a:visited {
+    color: #885ca4; /* Violet */
+    text-decoration: none;
+}
+a:hover,
+a:focus {
+    text-decoration: underline;
+}
+
+p {
+    margin-top: 0;
+}
+p + p {
+    margin-top: 1.5rem;
+}
+
+header {
+    margin-bottom: 1.5rem;
+}
+h1 {
+    background: url(../img/onion.jpg) left top no-repeat;
+    padding-left: 100px;
+    min-height: 118px;
+    padding-top: 28px;
+    font-size: 90px;
+    line-height: 1;
+    margin-top: 1.5rem;
+}
+@media (max-width: 480px) {
+    h1 {
+        background-size: 60px;
+        padding-left: 80px;
+        font-size: 60px;
+        min-height: 65px;
+    }
+}
+
+main {}
+
+
+.tools {
+    margin: 1.5rem 0;
+}
+.tool {
+    padding: 1.5rem;
+    background-color: #ddd;
+}
+.tool + .tool {margin-top: 1.5rem;}
+@media (min-width: 480px) {
+    .tool {
+        display: table-cell;
+        width: 50%;
+    }
+    .tool:first-child {
+        border-right: 0.75rem solid #fff;
+    }
+    .tool + .tool {
+        margin-top: 0;
+        border-left: 0.75rem solid #fff;
+    }
+}
+.tool-btn,
+.tool-btn:link,
+.tool-btn:visited {
+    display: block;
+    padding: 0.75rem;
+    margin: 1em 0 0 0;
+    color: #fcfcfc;
+    background-color: #56347c;
+    text-align: center;
+    border-radius: 0.75rem;
+    font-weight: bold;
+    font-variant: small-caps;
+    line-height: 1.4;
+}
+.tool-btn:hover,
+.tool-btn:focus {
+    background-color: #885ca4;
+    text-decoration: none;
+}
+
+footer {
+    font-size: 0.75em;
+    margin-top: 3rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #ddd; /* #4e6a20; */
+    text-align: center;
+    color: #666;
+}
